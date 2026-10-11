@@ -64,3 +64,17 @@ node --test tests/*.test.mjs
 The current suite has 27 passing checks covering geometry, trajectory clearance / determinism and the replay control contract. Read [the Phase 3 validation record](docs/PHASE_3_VALIDATION.md) for the exact checks and limitations. Browser-rendered visual fidelity, real mobile behavior and 60 FPS have **not** been verified. All airport assets, scenarios and charts remain synthetic; research measurements are not loaded. The original Phase 2 validation note above is historical.
 
 Rollback is preserved at branch `rollback/phase-2-98fd509` (commit `98fd509`).
+
+
+## Cinematic Mode (three complementary AI-generated airport views)
+
+The airport scene now has **3D Interactive / Cinematic** selectors. Cinematic offers **Hero Wide**, **Terminal** and **Runway** views; it does not replace the operationally meaningful interactive renderer. The video view is explicitly marked an AI-generated illustration, and never synchronizes generated aircraft imagery with experimental results.
+
+**Media delivery pending:** Place three user-generated MP4 videos into these paths in the repository, then allow Vercel to redeploy:
+- `media/hero-wide.mp4` — first 8-second hero-wide animation
+- `media/terminal-focus.mp4` — second terminal animation
+- `media/runway-focus.mp4` — third runway animation
+
+Video assets are not committed via the current text-only GitHub connector. Until uploaded, a missing-media message appears in Cinematic Mode; interactive 3D continues working. Files can be uploaded through the GitHub web interface, subject to GitHub's file-size limits. The three views are separate shots, not a geometrically accurate multi-camera capture. They are not perfect loops, so the player intentionally seeks to the start at the end (a visible reset may occur).
+
+No real prediction error, interval coverage, or interval width data are encoded in these videos.
