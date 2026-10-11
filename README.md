@@ -50,3 +50,17 @@ The app now attempts to load `airport-3d.js` as an ES module via a public Three.
 **Validation status:** Changes committed and connector-verified in GitHub. An end-to-end browser rendering test and deployment have **not** been completed in this session; external GitHub raw download was unavailable in the test container. The models and flight trajectories are illustrative—not an aviation-grade simulation.
 
 **Next:** test on desktop and mobile browser, fix any issues discovered, then consider self-hosting the Three.js dependency and deploying a static preview. A verified deployment URL has not been established yet.
+
+## Phase 3 — visual fidelity refactor
+
+The current scene has a detailed multi-section terminal, marked stands and jet bridges, tower, service equipment, smooth aircraft assets, atmospheric depth and a lower hero camera. Timed trajectories share taxi centre lines with the environment; arrival flare / rollout, departure lineup / rotation / climb and final gate stops are deterministic when seeking. Aircraft labels follow their 3D positions. Wheel, pinch and button zoom, damped orbit, **Reset to Hero View**, adaptive detail and the original SVG fallback are available. Three.js 0.166.1 is now bundled locally under its MIT license; no CDN is required at runtime.
+
+Run the dependency-free validation suite with Node 20 or later:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+The current suite has 27 passing checks covering geometry, trajectory clearance / determinism and the replay control contract. Read [the Phase 3 validation record](docs/PHASE_3_VALIDATION.md) for the exact checks and limitations. Browser-rendered visual fidelity, real mobile behavior and 60 FPS have **not** been verified. All airport assets, scenarios and charts remain synthetic; research measurements are not loaded. The original Phase 2 validation note above is historical.
+
+Rollback is preserved at branch `rollback/phase-2-98fd509` (commit `98fd509`).

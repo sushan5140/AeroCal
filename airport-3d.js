@@ -1,86 +1,169 @@
-// AeroCal Phase 2: optional, progressive-enhancement Three.js airport.
-// Visualization is synthetic and intentionally separate from scientific results.
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
-const host=document.getElementById("scene");
-if(!host) throw new Error("Airport mount missing");
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:"high-performance"});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
-renderer.setSize(host.clientWidth,host.clientHeight);
-renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.domElement.className="aerocal-three";
-renderer.domElement.setAttribute("aria-label","Interactive 3D airport visualization; drag to orbit and click aircraft");
-renderer.domElement.style.cssText="position:absolute;inset:0;z-index:1;touch-action:pan-y;cursor:grab";
-host.append(renderer.domElement);
-host.querySelector("#airport").style.visibility="hidden";
-host.querySelector(".skyline").style.visibility="hidden";
-host.querySelectorAll(".flighttag").forEach(t=>t.style.visibility="hidden");
-const scene=new THREE.Scene();scene.background=new THREE.Color("#d6ecff");scene.fog=new THREE.Fog("#d6ecff",82,180);
-const camera=new THREE.PerspectiveCamera(38,Math.max(1,host.clientWidth/host.clientHeight),0.1,260);
-const origin=new THREE.Vector3(0,0,0);
-let azimuth=-0.65,elevation=0.95,distance=80;
-function cameraUpdate(){camera.position.set(Math.sin(azimuth)*Math.cos(elevation)*distance,Math.sin(elevation)*distance,Math.cos(azimuth)*Math.cos(elevation)*distance);camera.lookAt(origin)}
-cameraUpdate();
-scene.add(new THREE.HemisphereLight("#ffffff","#90b0b8",2.35));
-const sun=new THREE.DirectionalLight("#fff3df",3.3);sun.position.set(-30,75,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=75;sun.shadow.camera.bottom=-75;sun.shadow.camera.near=1;sun.shadow.camera.far=180;sun.shadow.bias=-.0002;scene.add(sun);
-const mat=(hex,roughness=.72,metalness=0)=>new THREE.MeshStandardMaterial({color:hex,roughness,metalness});
-const grass=mat("#b8d5a6"),tarmac=mat("#8794a4"),runway=mat("#586779"),lineWhite=mat("#e6f0f7"),yellow=mat("#f9c767"),glass=mat("#94c9e1",.24,.15),roof=mat("#f6faff"),terminalWall=mat("#dbe9f3"),treeGreen=mat("#7bb88a"),blue=mat("#387dec",.4),red=mat("#e0836f",.5);
-function block(w,h,d,m,x,y,z,cast=false){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=cast;o.receiveShadow=true;scene.add(o);return o}
-block(180,.6,140,grass,0,-.35,0);
-block(136,.15,16,runway,0,.03,-22);block(136,.13,15,runway,0,.02,19);
-for(let x=-64;x<=64;x+=9){block(5,.025,.24,lineWhite,x,.13,-22);block(5,.025,.24,lineWhite,x,.12,19)}
-for(let x=-66;x<=66;x+=6){for(const z of [-29.8,-14.2,11.2,26.8]){const light=new THREE.Mesh(new THREE.SphereGeometry(.19,7,7),new THREE.MeshBasicMaterial({color:"#94d6ff"}));light.position.set(x,.24,z);scene.add(light)}}
-block(140,.14,11,tarmac,0,.1,-1);block(140,.14,10,tarmac,0,.12,36);
-for(let x=-65;x<66;x+=3)block(1.6,.02,.16,yellow,x,.21,-1);
-for(let x=-65;x<66;x+=4)block(2,.02,.16,yellow,x,.21,36);
-block(78,.18,29,tarmac,0,.15,53);
-block(67,7,10,terminalWall,0,4,62,true);block(70,1.3,13,roof,0,8.1,62,true);
-block(67,4.4,.35,glass,0,4.2,56.8);for(let x=-31;x<=31;x+=4)block(.2,4.3,.45,roof,x,4.2,56.5);
-for(const x of [-25,-10,5,20]){block(2.6,1.1,8,terminalWall,x,3,52,true);block(3.5,.25,8,roof,x,3.65,52);block(.8,1.3,.5,mat("#49728c"),x,2.2,47.8)}
-const tower=block(3.1,14,3.1,terminalWall,-39,7.4,59,true);const cap=block(7,3.1,6,glass,-39,15.8,59,true);block(8,1,7,roof,-39,17.8,59,true);
-function tree(x,z,scale=1){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.22,.33,2,6),mat("#98836d"));trunk.position.set(x,1,z);scene.add(trunk);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.7*scale,1),treeGreen);crown.position.set(x,2.9*scale,z);crown.castShadow=true;scene.add(crown)}
-for(let x=-72;x<72;x+=9){tree(x,-43,.8);if(x%3)tree(x,82,.75)}
-for(let x=-65;x<62;x+=22){block(6,3.4,4,mat("#d9e3ee"),x,1.8,92,true)}
-// Bezier-derived routes are intentionally not real navigation procedures.
-function path(points){return new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)),false,"catmullrom",.45)}
-const routes=[
-{ id:"DAL256", state:"Approach", c:"#478bf8",curve:path([[-74,19,-22],[-48,12,-22],[-21,5,-22],[13,.65,-22],[48,.65,-22]]) },
-{ id:"SWA703",state:"Departing",c:"#fba352",curve:path([[-51,.65,19],[-25,.65,19],[8,2,19],[33,12,19],[61,26,19]]) },
-{ id:"UAL118",state:"Taxi to gate",c:"#33bcac",curve:path([[-53,.75,-1],[-29,.75,-1],[-16,.75,10],[-16,.75,35],[-25,.75,51]]) },
-{ id:"AAL409",state:"Taxi to runway",c:"#347df4",curve:path([[32,.75,49],[30,.75,35],[28,.75,-1],[56,.75,-1]]) },
-{ id:"FFT332",state:"To gate",c:"#ab77f0",curve:path([[-3,.75,-1],[5,.75,9],[5,.75,36],[5,.75,49]]) },
-{ id:"JAL221",state:"At gate",c:"#9aacc6",curve:path([[21,.75,49],[21,.75,49.01]]) }
-];
-function planeModel(accent){const g=new THREE.Group(),white=mat("#f9fdff",.27,.08),wing=mat("#dbe7ef",.35),tail=mat(accent,.35);
-const body=new THREE.Mesh(new THREE.CapsuleGeometry(.72,8,4),white);body.rotation.z=Math.PI/2;body.scale.set(1,2.7,1);body.position.y=.83;g.add(body);
-const nose=new THREE.Mesh(new THREE.ConeGeometry(.69,2,10),white);nose.rotation.z=-Math.PI/2;nose.position.set(3.45,.83,0);g.add(nose);
-const wings=new THREE.Mesh(new THREE.BoxGeometry(2.2,.17,9.4),wing);wings.position.set(-.4,.7,0);g.add(wings);
-const stabilizers=new THREE.Mesh(new THREE.BoxGeometry(1.15,.12,3.2),wing);stabilizers.position.set(-3,.78,0);g.add(stabilizers);
-const fin=new THREE.Mesh(new THREE.BoxGeometry(1.15,2.45,.17),tail);fin.position.set(-3.1,1.85,0);g.add(fin);
-g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});g.userData.isPlane=true;return g}
-const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),aircraft=[];
-for(const r of routes){const geometry=new THREE.TubeGeometry(r.curve,115,.07,5,false);const material=new THREE.MeshBasicMaterial({color:r.c,transparent:true,opacity:.5});const tube=new THREE.Mesh(geometry,material);scene.add(tube);const p=planeModel(r.c);p.userData.flightId=r.id;scene.add(p);aircraft.push({...r,model:p,tube});}
-function updatePlanes(){const app=window.AeroCalState||{progress:0,density:"medium",selected:"DAL256"};const count=app.density==="low"?3:app.density==="high"?6:5;for(let i=0;i<aircraft.length;i++){const f=aircraft[i];f.model.visible=i<count;f.tube.visible=i<count;if(!f.model.visible)continue;const u=f.id==="JAL221"?.98:Math.min(.999,Math.max(0,(app.progress/300+i*.071)%1));const pos=f.curve.getPointAt(u);const tangent=f.curve.getTangentAt(u);f.model.position.copy(pos);f.model.rotation.y=Math.atan2(-tangent.z,tangent.x);f.model.scale.setScalar(f.id===app.selected?1.25:1);f.tube.material.opacity=f.id===app.selected ? 0.95 : 0.37}}
-let drag=false,px=0,py=0,moved=0;
-renderer.domElement.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY;moved=0;renderer.domElement.setPointerCapture(e.pointerId)});
-renderer.domElement.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-px,dy=e.clientY-py;moved+=Math.abs(dx)+Math.abs(dy);azimuth-=dx*.005;elevation=Math.min(1.4,Math.max(.38,elevation+dy*.005));px=e.clientX;py=e.clientY;cameraUpdate()});
-renderer.domElement.addEventListener("pointerup",e=>{drag=false;if(moved>8)return;const r=renderer.domElement.getBoundingClientRect();mouse.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(aircraft.filter(f=>f.model.visible).map(f=>f.model),true);if(hits.length){let o=hits[0].object;while(o&&!o.userData.flightId)o=o.parent;if(o?.userData.flightId)window.AeroCalSelect?.(o.userData.flightId)}});
-// Fast, predictable dolly zoom with both mouse-wheel and on-screen controls.
-let targetDistance=distance;
-const clampZoom=v=>Math.min(125,Math.max(18,v));
-function zoomBy(factor){targetDistance=clampZoom(targetDistance*factor)}
-renderer.domElement.addEventListener("wheel",e=>{e.preventDefault();zoomBy(Math.exp(e.deltaY*.0015))},{passive:false});
-const zoomControls=document.createElement("div");
-zoomControls.style.cssText="position:absolute;z-index:5;right:14px;top:14px;display:flex;flex-direction:column;gap:7px";
-const makeZoomButton=(label,title,action)=>{const b=document.createElement("button");b.textContent=label;b.title=title;b.setAttribute("aria-label",title);b.type="button";b.style.cssText="width:40px;height:40px;border:1px solid #b9d1f2;border-radius:11px;background:#fffffff0;color:#275791;font:700 20px system-ui;box-shadow:0 3px 12px #7094c633;cursor:pointer";b.addEventListener("click",action);zoomControls.append(b)};
-makeZoomButton("+","Zoom in",()=>zoomBy(.68));
-makeZoomButton("−","Zoom out",()=>zoomBy(1.47));
-makeZoomButton("⌂","Reset camera",()=>{azimuth=-.65;elevation=.95;targetDistance=80});
-host.append(zoomControls);
-renderer.domElement.addEventListener("dblclick",e=>{e.preventDefault();zoomBy(.65)});
+// Phase 3 refines the existing progressive-enhancement renderer and replay contract.
+import * as THREE from './vendor/three.module.min.js';
+import { buildAirport, planeModel, contactTexture } from './airport-assets.js';
+import { FLIGHTS, flightPose, routePoints, clamp } from './trajectory.js';
 
-new ResizeObserver(()=>{const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();renderer.setSize(w,h)}).observe(host);
-let last=0;function frame(now){requestAnimationFrame(frame);if(now-last<25)return;last=now;distance+=(targetDistance-distance)*.2;cameraUpdate();updatePlanes();renderer.render(scene,camera)}
-requestAnimationFrame(frame);
-const badge=document.createElement("div");badge.textContent="3D REPLAY · Synthetic environment · Drag to orbit / Scroll to zoom";badge.style.cssText="position:absolute;z-index:2;top:12px;left:12px;background:#ffffffd9;color:#406182;border-radius:12px;font:600 10px system-ui;padding:9px;pointer-events:none";host.append(badge);
+const host=document.getElementById('scene');
+if(!host) throw new Error('Airport mount missing');
+const lowHardware=(navigator.hardwareConcurrency||8)<=4 || (navigator.deviceMemory||8)<=4;
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+const mobile=()=>host.clientWidth<700;
+let quality=lowHardware?'balanced':'high';
+function setQuality(level) {
+  quality=level;
+  renderer.setPixelRatio(Math.min(devicePixelRatio,level==='high'?1.65:1));
+  renderer.shadowMap.enabled=level==='high';
+  scene.traverse(o=>{if(o.material){for(const m of (Array.isArray(o.material)?o.material:[o.material]))m.needsUpdate=true}});
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio,lowHardware?1:1.65));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
+renderer.shadowMap.enabled=!lowHardware;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.domElement.className='aerocal-three';
+renderer.domElement.setAttribute('aria-label','Synthetic 3D airport. Drag to orbit; pinch or scroll to zoom. Use flight labels to select aircraft.');
+renderer.domElement.style.cssText='position:absolute;inset:0;z-index:1;touch-action:none;cursor:grab';
+const scene=new THREE.Scene();scene.background=new THREE.Color('#cadce8');scene.fog=new THREE.Fog('#cadce8',255,510);
+const camera=new THREE.PerspectiveCamera(38,1,.2,1000);
+const hero={azimuth:.27,elevation:.51,distance:244};
+let azimuth=hero.azimuth,elevation=hero.elevation,distance=hero.distance;
+let targetAzimuth=azimuth,targetElevation=elevation,targetDistance=distance;
+const origin=new THREE.Vector3(0,3,8);
+function heroDistance(){return mobile()?310:244}
+function resetHero(){targetAzimuth=hero.azimuth;targetElevation=hero.elevation;targetDistance=heroDistance()}
+function cameraUpdate(dt=1/60) {
+  const k=reducedMotion?1:1-Math.exp(-10*dt);
+  azimuth+=(targetAzimuth-azimuth)*k;elevation+=(targetElevation-elevation)*k;distance+=(targetDistance-distance)*k;
+  camera.position.set(origin.x+Math.sin(azimuth)*Math.cos(elevation)*distance,origin.y+Math.sin(elevation)*distance,origin.z+Math.cos(azimuth)*Math.cos(elevation)*distance);
+  camera.lookAt(origin);camera.updateMatrixWorld();
+}
+// Soft sky gradient, diffuse fill, warm directional key and inexpensive contact AO.
+scene.add(new THREE.HemisphereLight('#e4f0ff','#849275',1.55));
+scene.add(new THREE.AmbientLight('#eef3f5',.2));
+const sun=new THREE.DirectionalLight('#fff1dc',2.35);sun.position.set(-90,150,75);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-140,right:140,top:130,bottom:-120,near:5,far:380});
+sun.shadow.bias=-.00015;sun.shadow.normalBias=.12;sun.shadow.radius=3;sun.target.position.set(0,0,12);scene.add(sun,sun.target);
+const sky=new THREE.Mesh(new THREE.SphereGeometry(800,24,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:new THREE.Color('#b8d4ed')},bottom:{value:new THREE.Color('#e9efec')}},vertexShader:'varying vec3 vWorld; void main(){vWorld=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'uniform vec3 top;uniform vec3 bottom;varying vec3 vWorld;void main(){float h=clamp((vWorld.y+25.0)/220.0,0.0,1.0);gl_FragColor=vec4(mix(bottom,top,smoothstep(0.0,1.0,h)),1.0);\n #include <tonemapping_fragment>\n #include <colorspace_fragment>\n }'}));
+scene.add(sky);
+const assetStats=buildAirport(scene);
+const clouds=new THREE.InstancedMesh(new THREE.SphereGeometry(1,16,10),new THREE.MeshStandardMaterial({color:'#eaf0ef',roughness:1,transparent:true,opacity:.6,depthWrite:false}),24);
+const cloudDummy=new THREE.Object3D();
+for(let i=0;i<24;i++){cloudDummy.position.set(-210+(i%8)*60,65+(i%3)*9,-190-Math.floor(i/8)*36);cloudDummy.scale.set(14+(i%3)*4,4+(i%2),7);cloudDummy.updateMatrix();clouds.setMatrixAt(i,cloudDummy.matrix)}scene.add(clouds);
+
+const labels=document.createElement('div');labels.className='aircraft-labels';
+const scratch=new THREE.Vector3(),ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+const shadowMap=contactTexture();
+// Parked stand assets are synthetic set dressing, separate from the selectable replay fleet.
+for(const [x,color] of [[-70,'#678ab8'],[-22,'#ca8067'],[74,'#8c9a86']]) {
+  const parked=planeModel(color);parked.position.set(x,0,38);parked.rotation.y=-Math.PI/2;scene.add(parked);
+  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(15,17),new THREE.MeshBasicMaterial({map:shadowMap,transparent:true,opacity:.62,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.set(x,.024,38);scene.add(shadow);
+}
+const aircraft=FLIGHTS.map(f=>{
+  const model=planeModel(f.color);model.userData.flightId=f.id;scene.add(model);
+  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(17,15),new THREE.MeshBasicMaterial({map:shadowMap,transparent:true,opacity:.62,depthWrite:false}));shadow.rotation.x=-Math.PI/2;scene.add(shadow);
+  const points=routePoints(f);let route=null;
+  if(points.length){route=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(...p))),new THREE.LineDashedMaterial({color:f.color,transparent:true,opacity:.26,dashSize:2,gapSize:1.1,depthWrite:false}));route.computeLineDistances();scene.add(route)}
+  const trailGeo=new THREE.BufferGeometry();trailGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(24),3));
+  const trail=new THREE.Line(trailGeo,new THREE.LineBasicMaterial({color:f.color,transparent:true,opacity:.65,depthWrite:false}));scene.add(trail);
+  const label=document.createElement('button');label.type='button';label.className='aircraft-label';label.style.setProperty('--flight-color',f.color);
+  label.innerHTML='<strong>'+f.id+'</strong><span>Synthetic · <em></em></span>';label.setAttribute('aria-label','Select synthetic aircraft '+f.id);
+  label.addEventListener('click',()=>window.AeroCalSelect?.(f.id));labels.append(label);
+  return {...f,model,shadow,route,trail,label,status:label.querySelector('em')};
+});
+const planeAxis=new THREE.Vector3(1,0,0),orientation=new THREE.Quaternion(),heading=new THREE.Vector3();
+const metrics={quality,drawCalls:0,triangles:0,frameMs:null,...assetStats};
+let updateStatus='';
+function updatePlanes() {
+  const app=window.AeroCalState||{progress:0,density:'medium',selected:'DAL256'},count=app.density==='low'?3:app.density==='high'?6:5;
+  const poses={};
+  for(let i=0;i<aircraft.length;i++) {
+    const f=aircraft[i],visible=i<count,selected=f.id===app.selected,p=flightPose(f,app.progress);poses[f.id]=p;
+    f.model.visible=visible;f.shadow.visible=visible;if(f.route)f.route.visible=visible;f.trail.visible=visible && f.kind!=='parked' && !reducedMotion;
+    f.label.hidden=!visible;if(!visible)continue;
+    f.model.position.set(p.x,p.y,p.z);
+    // Orientation is a pure function of replay time: reverse seeking never retains stale rotation.
+    heading.set(Math.cos(p.yaw)*Math.cos(p.pitch),Math.sin(p.pitch),-Math.sin(p.yaw)*Math.cos(p.pitch));
+    orientation.setFromUnitVectors(planeAxis,heading);f.model.quaternion.copy(orientation);
+    f.shadow.position.set(p.x,.024,p.z);f.shadow.material.opacity=.62*Math.exp(-p.y/9);f.shadow.rotation.z=-p.yaw;
+    if(f.route)f.route.material.opacity=selected ? .52 : .15;
+    // A short moving route tracer follows exactly the same clock-derived position function.
+    const positions=f.trail.geometry.attributes.position;
+    for(let j=0;j<8;j++){const q=flightPose(f,Math.max(0,app.progress-8+j));positions.setXYZ(j,q.x,q.y+.13,q.z)}
+    positions.needsUpdate=true;f.trail.geometry.computeBoundingSphere();
+    scratch.copy(f.model.position);scratch.y+=4.8;scratch.project(camera);
+    const x=(scratch.x*.5+.5)*host.clientWidth,y=(-scratch.y*.5+.5)*host.clientHeight;
+    const onscreen=scratch.z>-1 && scratch.z<1 && x>30 && x<host.clientWidth-30 && y>64 && y<host.clientHeight-76;
+    f.label.hidden=!onscreen || (mobile()&&!selected);
+    f.label.style.transform=`translate(${x}px,${y}px) translate(-50%,-100%)`;
+    f.label.classList.toggle('active',selected);f.label.setAttribute('aria-pressed',String(selected));
+    if(f.status.textContent!==p.state)f.status.textContent=p.state;
+    const width=110+p.state.length*2;f.labelRect={left:x-width/2,right:x+width/2,top:y-40,bottom:y};
+  }
+  // Hide overlapping unselected labels instead of disconnecting them from their aircraft.
+  const placed=[];
+  for(const f of [...aircraft].sort((a,b)=>(b.id===app.selected)-(a.id===app.selected))){
+    if(f.label.hidden)continue;const rect=f.labelRect;
+    if(placed.some(r=>rect.left<r.right+5&&rect.right>r.left-5&&rect.top<r.bottom+5&&rect.bottom>r.top-5)){f.label.hidden=true;continue}placed.push(rect);
+  }
+  window.AeroCalPoses=poses;
+  const state=poses[app.selected]?.state;
+  if(state&&state!==updateStatus){document.getElementById('selectedState').textContent=state;updateStatus=state}
+  const inAir=aircraft.slice(0,count).filter(f=>poses[f.id].y>.1).length;
+  document.getElementById('numAir').textContent=inAir;document.getElementById('numGround').textContent=count-inAir;
+  for(const row of document.querySelectorAll('#flightRows tr')){const p=poses[row.dataset.id];if(p&&row.cells[1].textContent!==p.state)row.cells[1].textContent=p.state}
+  for(const dot of document.querySelectorAll('[data-map-flight]')){const p=poses[dot.dataset.mapFlight];if(p){dot.setAttribute('cx',String(150+p.x));dot.setAttribute('cy',String(105+p.z));dot.style.display=aircraft.findIndex(f=>f.id===dot.dataset.mapFlight)<count?'':'none'}}
+}
+
+const pointers=new Map();let moved=0,pinchDistance=0,gestureWasMulti=false;
+function zoomBy(factor){targetDistance=clamp(targetDistance*factor,80,410)}
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(!pointers.size)gestureWasMulti=false;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;renderer.domElement.setPointerCapture(e.pointerId);renderer.domElement.style.cursor='grabbing';
+  if(pointers.size===2){gestureWasMulti=true;const [a,b]=[...pointers.values()];pinchDistance=Math.hypot(a.x-b.x,a.y-b.y)}
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+  const prev=pointers.get(e.pointerId);if(!prev)return;
+  const dx=e.clientX-prev.x,dy=e.clientY-prev.y;moved+=Math.abs(dx)+Math.abs(dy);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){const [a,b]=[...pointers.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(d>0&&pinchDistance>0)zoomBy(pinchDistance/d);pinchDistance=d}
+  else {targetAzimuth-=dx*.004;targetElevation=clamp(targetElevation+dy*.003,.2,1.18)}
+});
+function release(e,cancel=false){
+  const wasMulti=pointers.size>1;pointers.delete(e.pointerId);renderer.domElement.style.cursor='grab';
+  if(cancel||wasMulti||gestureWasMulti||moved>7)return;
+  const rect=renderer.domElement.getBoundingClientRect();mouse.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
+  ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(aircraft.filter(f=>f.model.visible).map(f=>f.model),true)[0];
+  if(hit){let o=hit.object;while(o&&!o.userData.flightId)o=o.parent;if(o)window.AeroCalSelect?.(o.userData.flightId)}
+}
+renderer.domElement.addEventListener('pointerup',e=>release(e));renderer.domElement.addEventListener('pointercancel',e=>release(e,true));
+renderer.domElement.addEventListener('lostpointercapture',e=>pointers.delete(e.pointerId));
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();zoomBy(Math.exp(clamp(e.deltaY,-300,300)*.0015))},{passive:false});
+renderer.domElement.addEventListener('dblclick',e=>{e.preventDefault();zoomBy(.7)});
+const controls=document.createElement('div');controls.className='camera-controls';
+function button(text,title,action,cls=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.title=title;b.setAttribute('aria-label',title);b.className=cls;b.addEventListener('click',action);controls.append(b);return b}
+button('+','Zoom in',()=>zoomBy(.72));button('−','Zoom out',()=>zoomBy(1.39));
+button('⌂ Hero view','Reset to Hero View',resetHero,'hero-control');
+const qualityButton=button(lowHardware?'Balanced':'High detail','Toggle scene quality',()=>{setQuality(quality==='high'?'balanced':'high');qualityButton.textContent=quality==='high'?'High detail':'Balanced';autoScaled=true},'quality-control');
+const badge=document.createElement('div');badge.className='scene-badge';badge.innerHTML='<i></i><strong>SYNTHETIC AIRPORT</strong><span>Scenario replay · illustrative trajectories</span>';
+const hint=document.createElement('div');hint.className='scene-hint';hint.textContent='Drag to orbit · Scroll / pinch to zoom';
+// Mount only after successful scene construction; module failure retains the SVG fallback.
+renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();
+resetHero();distance=targetDistance;cameraUpdate();updatePlanes();renderer.render(scene,camera);
+host.append(renderer.domElement,labels,controls,badge,hint);host.classList.add('has-three');window.AeroCal3DReady=true;
+let previousHeroDistance=heroDistance();
+new ResizeObserver(()=>{const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();renderer.setSize(w,h);if(!pointers.size&&Math.abs(targetDistance-previousHeroDistance)<1)targetDistance=heroDistance();previousHeroDistance=heroDistance()}).observe(host);
+let last=0,elapsed=0,samples=0,slowWindows=0,autoScaled=false;
+function frame(now) {
+  if(document.hidden){last=now;return}
+  const dt=last?Math.min(.1,(now-last)/1000):1/60;last=now;
+  cameraUpdate(dt);updatePlanes();renderer.render(scene,camera);
+  elapsed+=dt;samples++;
+  if(elapsed>=3){const mean=elapsed*1000/samples;metrics.frameMs=Math.round(mean*10)/10;metrics.quality=quality;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;
+    if(mean>28&&quality==='high')slowWindows++;else slowWindows=0;
+    if(slowWindows>=2&&!autoScaled){setQuality('balanced');qualityButton.textContent='Balanced';autoScaled=true}
+    elapsed=0;samples=0;
+  }
+}
+renderer.setAnimationLoop(frame);
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();renderer.setAnimationLoop(null);host.classList.remove('has-three');for(const el of [renderer.domElement,labels,controls,badge,hint])el.hidden=true;window.AeroCal3DReady=false;document.getElementById('sceneStatus').textContent='2D fallback · graphics context unavailable'});
+renderer.domElement.addEventListener('webglcontextrestored',()=>location.reload());
+// Read-only diagnostics support reproducible manual performance/replay verification.
+window.AeroCalDiagnostics={metrics,pose:(id,t)=>flightPose(FLIGHTS.find(f=>f.id===id),t),camera:()=>({azimuth,elevation,distance}),resetHero};
