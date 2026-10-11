@@ -2,6 +2,7 @@
 import * as THREE from './vendor/three.module.min.js';
 import { buildAirport, planeModel, contactTexture } from './airport-assets.js';
 import { FLIGHTS, flightPose, routePoints, clamp } from './trajectory.js';
+import { createAirportLife } from './airport-life.js';
 
 const host=document.getElementById('scene');
 if(!host) throw new Error('Airport mount missing');
@@ -30,8 +31,15 @@ let azimuth=hero.azimuth,elevation=hero.elevation,distance=hero.distance;
 let targetAzimuth=azimuth,targetElevation=elevation,targetDistance=distance;
 const origin=new THREE.Vector3(0,3,8);
 function heroDistance(){return mobile()?310:244}
-function resetHero(){targetAzimuth=hero.azimuth;targetElevation=hero.elevation;targetDistance=heroDistance()}
+function resetHero(){guidedCamera=false;targetAzimuth=hero.azimuth;targetElevation=hero.elevation;targetDistance=heroDistance();if(typeof tourButton!=='undefined'&&tourButton)tourButton.textContent='▶ Camera tour'}
+let guidedCamera=false,guidedTime=0;
 function cameraUpdate(dt=1/60) {
+  if(guidedCamera&&!pointers.size&&!reducedMotion){
+    guidedTime+=dt;
+    targetAzimuth=hero.azimuth+Math.sin(guidedTime*.11)*.20;
+    targetElevation=hero.elevation+Math.sin(guidedTime*.07)*.055;
+    targetDistance=heroDistance()+Math.sin(guidedTime*.095)*18;
+  }
   const k=reducedMotion?1:1-Math.exp(-10*dt);
   azimuth+=(targetAzimuth-azimuth)*k;elevation+=(targetElevation-elevation)*k;distance+=(targetDistance-distance)*k;
   camera.position.set(origin.x+Math.sin(azimuth)*Math.cos(elevation)*distance,origin.y+Math.sin(elevation)*distance,origin.z+Math.cos(azimuth)*Math.cos(elevation)*distance);
@@ -49,6 +57,7 @@ const assetStats=buildAirport(scene);
 const clouds=new THREE.InstancedMesh(new THREE.SphereGeometry(1,16,10),new THREE.MeshStandardMaterial({color:'#eaf0ef',roughness:1,transparent:true,opacity:.6,depthWrite:false}),24);
 const cloudDummy=new THREE.Object3D();
 for(let i=0;i<24;i++){cloudDummy.position.set(-210+(i%8)*60,65+(i%3)*9,-190-Math.floor(i/8)*36);cloudDummy.scale.set(14+(i%3)*4,4+(i%2),7);cloudDummy.updateMatrix();clouds.setMatrixAt(i,cloudDummy.matrix)}scene.add(clouds);
+const airportLife=createAirportLife(scene,clouds);
 
 const labels=document.createElement('div');labels.className='aircraft-labels';
 const scratch=new THREE.Vector3(),ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
@@ -117,7 +126,7 @@ function updatePlanes() {
 const pointers=new Map();let moved=0,pinchDistance=0,gestureWasMulti=false;
 function zoomBy(factor){targetDistance=clamp(targetDistance*factor,80,410)}
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(!pointers.size)gestureWasMulti=false;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;renderer.domElement.setPointerCapture(e.pointerId);renderer.domElement.style.cursor='grabbing';
+  if(!pointers.size)gestureWasMulti=false;guidedCamera=false;if(tourButton)tourButton.textContent='▶ Camera tour';pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;renderer.domElement.setPointerCapture(e.pointerId);renderer.domElement.style.cursor='grabbing';
   if(pointers.size===2){gestureWasMulti=true;const [a,b]=[...pointers.values()];pinchDistance=Math.hypot(a.x-b.x,a.y-b.y)}
 });
 renderer.domElement.addEventListener('pointermove',e=>{
@@ -141,6 +150,7 @@ const controls=document.createElement('div');controls.className='camera-controls
 function button(text,title,action,cls=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.title=title;b.setAttribute('aria-label',title);b.className=cls;b.addEventListener('click',action);controls.append(b);return b}
 button('+','Zoom in',()=>zoomBy(.72));button('−','Zoom out',()=>zoomBy(1.39));
 button('⌂ Hero view','Reset to Hero View',resetHero,'hero-control');
+const tourButton=button('▶ Camera tour','Toggle gentle autonomous 3D camera tour',()=>{guidedCamera=!guidedCamera;tourButton.textContent=guidedCamera?'Ⅱ Stop tour':'▶ Camera tour'},'hero-control');
 const qualityButton=button(lowHardware?'Balanced':'High detail','Toggle scene quality',()=>{setQuality(quality==='high'?'balanced':'high');qualityButton.textContent=quality==='high'?'High detail':'Balanced';autoScaled=true},'quality-control');
 const badge=document.createElement('div');badge.className='scene-badge';badge.innerHTML='<i></i><strong>SYNTHETIC AIRPORT</strong><span>Scenario replay · illustrative trajectories</span>';
 const hint=document.createElement('div');hint.className='scene-hint';hint.textContent='Drag to orbit · Scroll / pinch to zoom';
@@ -150,10 +160,12 @@ resetHero();distance=targetDistance;cameraUpdate();updatePlanes();renderer.rende
 host.append(renderer.domElement,labels,controls,badge,hint);host.classList.add('has-three');window.AeroCal3DReady=true;
 let previousHeroDistance=heroDistance();
 new ResizeObserver(()=>{const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();renderer.setSize(w,h);if(!pointers.size&&Math.abs(targetDistance-previousHeroDistance)<1)targetDistance=heroDistance();previousHeroDistance=heroDistance()}).observe(host);
-let last=0,elapsed=0,samples=0,slowWindows=0,autoScaled=false;
+let last=0,elapsed=0,samples=0,slowWindows=0,autoScaled=false,lifeTime=0;
 function frame(now) {
   if(document.hidden){last=now;return}
   const dt=last?Math.min(.1,(now-last)/1000):1/60;last=now;
+  lifeTime+=dt;
+  airportLife.update(lifeTime,!host.classList.contains('cinematic-active'));
   cameraUpdate(dt);updatePlanes();renderer.render(scene,camera);
   elapsed+=dt;samples++;
   if(elapsed>=3){const mean=elapsed*1000/samples;metrics.frameMs=Math.round(mean*10)/10;metrics.quality=quality;metrics.drawCalls=renderer.info.render.calls;metrics.triangles=renderer.info.render.triangles;
@@ -166,4 +178,4 @@ renderer.setAnimationLoop(frame);
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();renderer.setAnimationLoop(null);host.classList.remove('has-three');for(const el of [renderer.domElement,labels,controls,badge,hint])el.hidden=true;window.AeroCal3DReady=false;document.getElementById('sceneStatus').textContent='2D fallback · graphics context unavailable'});
 renderer.domElement.addEventListener('webglcontextrestored',()=>location.reload());
 // Read-only diagnostics support reproducible manual performance/replay verification.
-window.AeroCalDiagnostics={metrics,pose:(id,t)=>flightPose(FLIGHTS.find(f=>f.id===id),t),camera:()=>({azimuth,elevation,distance}),resetHero};
+window.AeroCalDiagnostics={...window.AeroCalDiagnostics,metrics,pose:(id,t)=>flightPose(FLIGHTS.find(f=>f.id===id),t),camera:()=>({azimuth,elevation,distance}),resetHero};
