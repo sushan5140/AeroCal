@@ -66,8 +66,21 @@ let drag=false,px=0,py=0,moved=0;
 renderer.domElement.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY;moved=0;renderer.domElement.setPointerCapture(e.pointerId)});
 renderer.domElement.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-px,dy=e.clientY-py;moved+=Math.abs(dx)+Math.abs(dy);azimuth-=dx*.005;elevation=Math.min(1.4,Math.max(.38,elevation+dy*.005));px=e.clientX;py=e.clientY;cameraUpdate()});
 renderer.domElement.addEventListener("pointerup",e=>{drag=false;if(moved>8)return;const r=renderer.domElement.getBoundingClientRect();mouse.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(aircraft.filter(f=>f.model.visible).map(f=>f.model),true);if(hits.length){let o=hits[0].object;while(o&&!o.userData.flightId)o=o.parent;if(o?.userData.flightId)window.AeroCalSelect?.(o.userData.flightId)}});
-renderer.domElement.addEventListener("wheel",e=>{e.preventDefault();distance=Math.min(120,Math.max(35,distance+e.deltaY*.055));cameraUpdate()},{passive:false});
+// Fast, predictable dolly zoom with both mouse-wheel and on-screen controls.
+let targetDistance=distance;
+const clampZoom=v=>Math.min(125,Math.max(18,v));
+function zoomBy(factor){targetDistance=clampZoom(targetDistance*factor)}
+renderer.domElement.addEventListener("wheel",e=>{e.preventDefault();zoomBy(Math.exp(e.deltaY*.0015))},{passive:false});
+const zoomControls=document.createElement("div");
+zoomControls.style.cssText="position:absolute;z-index:5;right:14px;top:14px;display:flex;flex-direction:column;gap:7px";
+const makeZoomButton=(label,title,action)=>{const b=document.createElement("button");b.textContent=label;b.title=title;b.setAttribute("aria-label",title);b.type="button";b.style.cssText="width:40px;height:40px;border:1px solid #b9d1f2;border-radius:11px;background:#fffffff0;color:#275791;font:700 20px system-ui;box-shadow:0 3px 12px #7094c633;cursor:pointer";b.addEventListener("click",action);zoomControls.append(b)};
+makeZoomButton("+","Zoom in",()=>zoomBy(.68));
+makeZoomButton("−","Zoom out",()=>zoomBy(1.47));
+makeZoomButton("⌂","Reset camera",()=>{azimuth=-.65;elevation=.95;targetDistance=80});
+host.append(zoomControls);
+renderer.domElement.addEventListener("dblclick",e=>{e.preventDefault();zoomBy(.65)});
+
 new ResizeObserver(()=>{const w=host.clientWidth,h=host.clientHeight;camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();renderer.setSize(w,h)}).observe(host);
-let last=0;function frame(now){requestAnimationFrame(frame);if(now-last<25)return;last=now;updatePlanes();renderer.render(scene,camera)}
+let last=0;function frame(now){requestAnimationFrame(frame);if(now-last<25)return;last=now;distance+=(targetDistance-distance)*.2;cameraUpdate();updatePlanes();renderer.render(scene,camera)}
 requestAnimationFrame(frame);
 const badge=document.createElement("div");badge.textContent="3D REPLAY · Synthetic environment · Drag to orbit / Scroll to zoom";badge.style.cssText="position:absolute;z-index:2;top:12px;left:12px;background:#ffffffd9;color:#406182;border-radius:12px;font:600 10px system-ui;padding:9px;pointer-events:none";host.append(badge);
