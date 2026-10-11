@@ -41,3 +41,12 @@ The next research integration phase must consume versioned experiment artifacts,
 ## Project scope
 
 This is a visualization prototype—not air-traffic control software, operational prediction software, or a validated research result. No external services or paid dependencies are required for Phase 1.
+
+
+## Phase 2 — optional Three.js airport scene (October 2026)
+
+The app now attempts to load `airport-3d.js` as an ES module via a public Three.js CDN. A successfully initialized WebGL scene renders terminal buildings, runways, taxiways, lights, aircraft models, colored trajectories, orbit/zoom camera controls, and the same pause/scrub/speed/density interactions as the original timeline. Select a 3D aircraft to inspect it in the existing flight detail card. If module loading fails, the original SVG airport remains visible.
+
+**Validation status:** Changes committed and connector-verified in GitHub. An end-to-end browser rendering test and deployment have **not** been completed in this session; external GitHub raw download was unavailable in the test container. The models and flight trajectories are illustrative—not an aviation-grade simulation.
+
+**Next:** test on desktop and mobile browser, fix any issues discovered, then consider self-hosting the Three.js dependency and deploying a static preview. A verified deployment URL has not been established yet.
