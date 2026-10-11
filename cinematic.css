@@ -1,7 +1,7 @@
 /* AeroCal cinematic presentation layer; interactive simulation is preserved underneath. */
 .sceneWrap .cinematic-layer[hidden], .sceneWrap .cinematic-toolbar [hidden]{display:none!important}
 .sceneWrap .cinematic-layer{position:absolute;inset:0;z-index:7;background:#dcecf8;overflow:hidden}
-.sceneWrap .cinematic-video{display:block;width:100%;height:100%;object-fit:cover;background:linear-gradient(135deg,#c3dbf1,#ebf4fa)}
+.sceneWrap .cinematic-video{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:linear-gradient(135deg,#c3dbf1,#ebf4fa)}
 .sceneWrap .cinematic-disclaimer{position:absolute;left:12px;bottom:14px;background:#fffef0ed;color:#675432;border:1px solid #e1d6aa;border-radius:10px;padding:8px 10px;font:600 11px system-ui}
 .sceneWrap .cinematic-error{position:absolute;inset:27% 10% auto;background:#fffffff5;color:#314763;padding:22px;border-radius:14px;line-height:1.5;text-align:center;box-shadow:0 8px 20px #516b8529;font:600 14px system-ui}
 .sceneWrap .cinematic-toolbar{position:absolute;z-index:12;top:12px;right:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 22px)}
@@ -12,3 +12,10 @@
 .sceneWrap.cinematic-active .scenelegend,.sceneWrap.cinematic-active .scene-status,.sceneWrap.cinematic-active .aerocal-three,.sceneWrap.cinematic-active .flighttag,.sceneWrap.cinematic-active .skyline,.sceneWrap.cinematic-active #airport{visibility:hidden!important}
 .sceneWrap.cinematic-active .cinematic-toolbar,.sceneWrap.cinematic-active .cinematic-layer{visibility:visible!important}
 @media(max-width:700px){.sceneWrap .cinematic-toolbar{left:8px;right:8px;top:8px;justify-content:center;max-width:none}.sceneWrap .cinematic-toolbar button{padding:7px 8px;font-size:10px}.sceneWrap .cinematic-disclaimer{font-size:9px;bottom:9px;max-width:95%}}
+
+/* Keep the original 16:9 frame intact, without forced cropping. */
+.sceneWrap.cinematic-active{aspect-ratio:16/9;min-height:0}
+.sceneWrap.cinematic-active:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;max-height:none;border:0;border-radius:0;background:#0a1727}
+.sceneWrap.cinematic-active:fullscreen .cinematic-layer{background:#0a1727}
+.sceneWrap.cinematic-active:fullscreen .cinematic-video{object-fit:contain}
+.sceneWrap #cinematicExpand{background:#fff;box-shadow:0 4px 16px #385b7c2c}
