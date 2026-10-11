@@ -12,13 +12,13 @@
   scene.append(holder);
   const vid=holder.querySelector('video'), error=holder.querySelector('#cinematicError');
   const toolbar=document.createElement('div');toolbar.className='cinematic-toolbar';
-  toolbar.innerHTML='<div class="cinematic-modes" role="group" aria-label="Airport view mode"><button type="button" data-mode="interactive" class="current" aria-pressed="true">3D Interactive</button><button type="button" data-mode="cinematic" aria-pressed="false">Cinematic</button></div><div class="cinematic-views" role="group" aria-label="Cinematic camera views" hidden></div><button type="button" id="cinematicPlay" hidden>Pause video</button>';
+  toolbar.innerHTML='<div class="cinematic-modes" role="group" aria-label="Airport view mode"><button type="button" data-mode="interactive" class="current" aria-pressed="true">3D Interactive</button><button type="button" data-mode="cinematic" aria-pressed="false">Cinematic</button></div><div class="cinematic-views" role="group" aria-label="Cinematic camera views" hidden></div><button type="button" id="cinematicPlay" hidden>Pause video</button><button type="button" id="cinematicExpand" hidden aria-label="Expand cinematic view">⛶ Fullscreen</button>';
   scene.append(toolbar);
-  const views=toolbar.querySelector('.cinematic-views'), modeButtons=[...toolbar.querySelectorAll('[data-mode]')], play=toolbar.querySelector('#cinematicPlay');
+  const views=toolbar.querySelector('.cinematic-views'), modeButtons=[...toolbar.querySelectorAll('[data-mode]')], play=toolbar.querySelector('#cinematicPlay'), expand=toolbar.querySelector('#cinematicExpand');
   manifest.forEach(item=>{const b=document.createElement('button');b.type='button';b.textContent=item.name;b.dataset.view=item.id;b.addEventListener('click',()=>choose(item.id));views.append(b)});
   let mode='interactive',selected='hero',loadedId=null;
   const status=document.getElementById('sceneStatus');
-  function updateButtons(){modeButtons.forEach(b=>{const on=b.dataset.mode===mode;b.classList.toggle('current',on);b.setAttribute('aria-pressed',String(on))});views.hidden=mode!=='cinematic';play.hidden=mode!=='cinematic';[...views.children].forEach(b=>{const on=b.dataset.view===selected;b.classList.toggle('current',on);b.setAttribute('aria-pressed',String(on))})}
+  function updateButtons(){modeButtons.forEach(b=>{const on=b.dataset.mode===mode;b.classList.toggle('current',on);b.setAttribute('aria-pressed',String(on))});views.hidden=mode!=='cinematic';play.hidden=mode!=='cinematic';expand.hidden=mode!=='cinematic';[...views.children].forEach(b=>{const on=b.dataset.view===selected;b.classList.toggle('current',on);b.setAttribute('aria-pressed',String(on))})}
   function setError(message){error.hidden=!message;error.textContent=message||'';if(message){status&&(status.textContent='Cinematic media unavailable · 3D view remains usable')}}
   function choose(id){
     const item=manifest.find(x=>x.id===id);if(!item)return;
@@ -40,6 +40,8 @@
   vid.addEventListener('playing',()=>{play.textContent='Pause video'});
   vid.addEventListener('pause',()=>{play.textContent='Play video'});
   play.addEventListener('click',()=>vid.paused?vid.play().catch(()=>{}):vid.pause());
+  expand.addEventListener('click',()=>{if(document.fullscreenElement===scene){document.exitFullscreen?.().catch(()=>{});}else{scene.requestFullscreen?.().catch(()=>{setError('Fullscreen is unavailable in this browser. The uncropped 16:9 frame remains available.');});}});
+  document.addEventListener('fullscreenchange',()=>{expand.textContent=document.fullscreenElement===scene?'⤡ Exit fullscreen':'⛶ Fullscreen'});
   modeButtons.forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)vid.pause()});
   updateButtons();
