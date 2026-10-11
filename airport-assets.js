@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
-import { GATES, TAXI_ROUTES } from './trajectory.js';
+import { GATES, TAXI_ROUTES, departureEntry } from './trajectory.js';
 
 // Reusable procedural assets: shared geometry/materials, batched static instances.
 const box = new THREE.BoxGeometry(1,1,1);
@@ -64,7 +64,7 @@ export function buildAirport(scene) {
   block(31,.06,11,M.pavement,90,-.015,-40);
   block(11,.06,25,M.pavement,96,-.015,-29);
   line([[-110,-17],[110,-17]]);line([[-86,20],[96,20]]);
-  for(const route of Object.values(TAXI_ROUTES))line(route.samples);
+  for(const route of [...Object.values(TAXI_ROUTES),departureEntry])line(route.samples);
   // Runway edges, threshold bars, touchdown zones and numbered thresholds.
   for(const z of [-45.65,-34.35])line([[-112,z],[112,z]],M.white,.18);
   for(let x=-96;x<=96;x+=12)stripe([x,-40],[x+5,-40],M.white,.25);

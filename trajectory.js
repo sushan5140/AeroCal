@@ -62,7 +62,7 @@ function hermite(t, keys) {
 }
 const arrivalX = [[0,-155,1.25],[90,-55,1],[155,60,.65],[205,88,0],[300,88,0]];
 const arrivalY = [[0,23,-.24],[78,2,-.15],[100,0,0],[300,0,0]];
-const departureEntry = roundedRoute([[-96,-17],[-96,-40],[-79,-40]],8);
+export const departureEntry = roundedRoute([[-96,-17],[-96,-40],[-79,-40]],8);
 const departureX = [[0,-79,0],[150,-79,0],[215,-12,2],[270,130,2.5],[300,200,2]];
 const departureY = [[0,0,0],[215,0,0],[245,13,.7],[300,58,.9]];
 export function flightPose(flight, seconds) {
