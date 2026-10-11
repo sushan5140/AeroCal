@@ -2,9 +2,9 @@
 (() => {
   const scene=document.getElementById('scene'); if(!scene)return;
   const manifest=[
-    {id:'hero',name:'Hero Wide',file:'./media/hero-wide.mp4'},
-    {id:'terminal',name:'Terminal',file:'./media/terminal-focus.mp4'},
-    {id:'runway',name:'Runway',file:'./media/runway-focus.mp4'}
+    {id:'hero',name:'Hero Wide',file:'./media/Animate_airport_operations_scene_1080p_20261012005734.mp4'},
+    {id:'terminal',name:'Terminal',file:'./media/Animate_airport_operations_scene_1080p_20261012005928.mp4'},
+    {id:'runway',name:'Runway',file:'./media/Animating_airport_operations_seq%E2%80%A6_1080p_20261012010127.mp4'}
   ];
   const holder=document.createElement('section');
   holder.id='cinematicLayer'; holder.className='cinematic-layer'; holder.hidden=true;
